@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nuestra biblioteca</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f3f0f8; --ink:#232340; --muted:#6b6a85; --card:#ffffff; --accent:#b8325e; --line:#ddd8ea;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#171729; --ink:#ece9f6; --muted:#9a98b8; --card:#222240; --accent:#ee7a9e; --line:#33335a; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Figtree,system-ui,sans-serif;line-height:1.5}
+  header{max-width:960px;margin:0 auto;padding:48px 20px 16px}
+  h1{font-family:"Young Serif",Georgia,serif;font-weight:400;font-size:clamp(2rem,6vw,3.2rem);margin:0 0 8px;letter-spacing:-.01em}
+  header p{margin:0;color:var(--muted);max-width:52ch}
+  .tools{max-width:960px;margin:0 auto;padding:16px 20px}
+  input[type=search]{width:100%;max-width:420px;padding:12px 14px;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px}
+  input[type=search]:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  #count{color:var(--muted);font-size:.9rem;margin-left:12px}
+  main{max-width:960px;margin:0 auto;padding:8px 20px 64px}
+  #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:22px}
+  .book{display:flex;flex-direction:column;gap:10px}
+  .cover{position:relative;aspect-ratio:2/3;border-radius:4px 10px 10px 4px;overflow:hidden;color:#fff;
+         display:flex;align-items:flex-end;padding:16px 14px;box-shadow:inset 8px 0 0 rgba(0,0,0,.18), 0 6px 14px rgba(20,20,50,.18)}
+  .cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .cover span{font-family:"Young Serif",Georgia,serif;font-size:1.05rem;line-height:1.2;position:relative;text-wrap:balance}
+  .meta{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:.85rem;color:var(--muted)}
+  .dl{display:block;text-align:center;text-decoration:none;font-weight:600;color:#fff;background:var(--accent);padding:10px 12px;border-radius:8px}
+  .dl:hover{filter:brightness(1.08)}
+  #msg{color:var(--muted);padding:24px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>Nuestra biblioteca</h1>
+  <p>Elige un libro y descárgalo. Cada tanto aparecen libros nuevos.</p>
+</header>
+
+<div class="tools">
+  <input id="q" type="search" placeholder="Buscar por título" aria-label="Buscar por título">
+  <span id="count"></span>
+</div>
+
+<main>
+  <div id="msg">Cargando libros…</div>
+  <div id="grid" hidden></div>
+</main>
+
+<script>
+/* Si NO usas GitHub Pages con la URL normal (usuario.github.io/repo),
+   rellena estas dos líneas. Si no, déjalas vacías: se detectan solas. */
+const USUARIO = "";
+const REPO = "";
+const CARPETA = "libros";
+
+const user = USUARIO || location.hostname.split(".")[0];
+const repo = REPO || location.pathname.split("/").filter(Boolean)[0] || "";
+const BOOK_EXT = ["pdf","epub","mobi","azw3","txt","docx","cbz"];
+const IMG_EXT = ["jpg","jpeg","png","webp"];
+
+const grid = document.getElementById("grid");
+const msg = document.getElementById("msg");
+const q = document.getElementById("q");
+const count = document.getElementById("count");
+let books = [];
+
+const ext = n => n.split(".").pop().toLowerCase();
+const base = n => n.replace(/\.[^.]+$/, "");
+const pretty = n => base(n).replace(/[_]+/g, " ").replace(/\s+-\s+|-+/g, " ").replace(/\s+/g, " ").trim();
+const hue = s => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
+const path = n => CARPETA + "/" + encodeURIComponent(n);
+
+function render() {
+  const t = q.value.trim().toLowerCase();
+  const list = books.filter(b => pretty(b.name).toLowerCase().includes(t));
+  grid.replaceChildren();
+  for (const b of list) {
+    const title = pretty(b.name);
+    const h = hue(title);
+    const el = document.createElement("article");
+    el.className = "book";
+    const cover = document.createElement("div");
+    cover.className = "cover";
+    cover.style.background = `linear-gradient(160deg, hsl(${h} 45% 36%), hsl(${(h + 30) % 360} 50% 24%))`;
+    if (b.cover) {
+      const img = document.createElement("img");
+      img.src = path(b.cover); img.alt = ""; img.loading = "lazy";
+      cover.appendChild(img);
+    } else {
+      const s = document.createElement("span"); s.textContent = title; cover.appendChild(s);
+    }
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    const nm = document.createElement("span"); nm.textContent = b.cover ? title : "";
+    const fmt = document.createElement("span"); fmt.textContent = ext(b.name).toUpperCase() + " · " + fmtSize(b.size);
+    meta.append(nm, fmt);
+    const a = document.createElement("a");
+    a.className = "dl"; a.href = path(b.name); a.setAttribute("download", b.name);
+    a.textContent = "Descargar";
+    el.append(cover, meta, a);
+    grid.appendChild(el);
+  }
+  count.textContent = list.length + (list.length === 1 ? " libro" : " libros");
+  grid.hidden = !list.length;
+  msg.hidden = !!list.length;
+  if (!list.length) msg.textContent = books.length ? "No hay libros con ese título." : "Todavía no hay libros. Sube el primero a la carpeta “" + CARPETA + "”.";
+}
+
+function fmtSize(b) {
+  if (!b) return "";
+  return b > 1048576 ? (b / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1024)) + " KB";
+}
+
+async function load() {
+  try {
+    const r = await fetch(`https://api.github.com/repos/${user}/${repo}/contents/${CARPETA}`);
+    if (!r.ok) throw new Error(r.status);
+    const files = (await r.json()).filter(f => f.type === "file");
+    const imgs = new Map(files.filter(f => IMG_EXT.includes(ext(f.name))).map(f => [base(f.name).toLowerCase(), f.name]));
+    books = files.filter(f => BOOK_EXT.includes(ext(f.name)))
+      .map(f => ({ name: f.name, size: f.size, cover: imgs.get(base(f.name).toLowerCase()) }))
+      .sort((a, b) => pretty(a.name).localeCompare(pretty(b.name), "es"));
+    render();
+  } catch (e) {
+    msg.textContent = "No se pudo cargar la lista de libros. Comprueba que el repositorio es público y que la carpeta “" + CARPETA + "” existe.";
+  }
+}
+q.addEventListener("input", render);
+load();
+</script>
+</body>
+</html>
